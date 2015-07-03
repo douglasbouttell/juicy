@@ -28,6 +28,7 @@ public class NotificationBusTest {
         Assert.assertEquals(2L, (long)items.get(1));
         Assert.assertEquals(3L, (long)items.get(2));
         Assert.assertEquals(4L, (long)items.get(3));
+        nb.close();
     }
 
     @Test
@@ -55,6 +56,7 @@ public class NotificationBusTest {
 
         items = nb.getAll();
         Assert.assertEquals("getAll() empty", 0, items.size());
+        nb.close();
     }
 
     @Test
@@ -82,6 +84,7 @@ public class NotificationBusTest {
         Mockito.verify(listener).onRemove(3L);
         Mockito.verify(listener).onRemove(4L);
         Mockito.verifyNoMoreInteractions(listener);
+        nb.close();
     }
 
 }

@@ -1,7 +1,8 @@
 package uk.co.douglasbouttell.juicy.util;
 
-import uk.co.douglasbouttell.juicy.concurrent.LoopingRunnable;
+import uk.co.douglasbouttell.juicy.concurrent.ConsumingRunnable;
 
+import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -10,13 +11,15 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author Douglas Bouttell
  * @since 03/07/2015
  */
-public class NotificationBus<E> {
+public class NotificationBus<E> implements Closeable {
 
     private final Map<Long, E> active = new ConcurrentHashMap<Long, E>();
     private final List<NotificationBusListener<E>> listeners = new CopyOnWriteArrayList<NotificationBusListener<E>>();
     private final Queue<Event<E>> dispatchQueue = new ConcurrentLinkedQueue<Event<E>>();
     private final AtomicLong id = new AtomicLong(0);
     private final ExecutorService exec;
+    private final Dispatcher<E> dispatch;
+    private final Future dispatchFuture;
 
     /**
      * Default contructor
@@ -31,25 +34,25 @@ public class NotificationBus<E> {
                 return t;
             }
         }));
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            public void run() {
-                try {
-                    exec.shutdown();
-                    exec.awaitTermination(60, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    exec.shutdownNow();
-                }
-            }
-        }));
     }
 
     /**
-     * Specify an executor for the event dispatcher
+     * Specify an executor for the event dispatch
      * @param exec An executor
      */
     public NotificationBus(final ExecutorService exec) {
         this.exec = exec;
-        this.exec.submit(new Dispatcher<E>(dispatchQueue, listeners));
+        this.dispatch = new Dispatcher<E>(dispatchQueue, listeners);
+        this.dispatchFuture = this.exec.submit(dispatch);
+    }
+
+    public void close() {
+        try {
+            this.dispatch.stop();
+            this.dispatch.awaitFinished();
+        } catch (InterruptedException e) {
+            this.dispatchFuture.cancel(true);
+        }
     }
 
     /**
@@ -120,12 +123,11 @@ public class NotificationBus<E> {
         }
     }
 
-    private static class Dispatcher<E> extends LoopingRunnable {
-        private final Queue<Event<E>> q;
+    private static class Dispatcher<E> extends ConsumingRunnable<Event<E>> {
         private final List<NotificationBusListener<E>> listeners;
 
         public Dispatcher(Queue<Event<E>> q, List<NotificationBusListener<E>> listeners) {
-            this.q = q;
+            super(q);
             this.listeners = listeners;
         }
 
@@ -135,15 +137,12 @@ public class NotificationBus<E> {
         }
 
         @Override
-        public void loop() {
-            Event<E> ev = q.poll();
-            if (ev != null) {
-                for (NotificationBusListener<E> listener : listeners) {
-                    switch (ev.getVerb()) {
-                        case ADD: listener.onAdd(ev.getEvent()); break;
-                        case REMOVE: listener.onRemove(ev.getEvent()); break;
-                        default: break;
-                    }
+        protected void consume(Event<E> ev) {
+            for (NotificationBusListener<E> listener : listeners) {
+                switch (ev.getVerb()) {
+                    case ADD: listener.onAdd(ev.getEvent()); break;
+                    case REMOVE: listener.onRemove(ev.getEvent()); break;
+                    default: break;
                 }
             }
         }
