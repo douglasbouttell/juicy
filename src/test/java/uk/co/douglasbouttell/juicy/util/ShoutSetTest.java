@@ -5,23 +5,24 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Douglas
  * @since 03/07/2015
  */
-public class NotificationBusTest {
+public class ShoutSetTest {
 
     @Test
     public void basicAddTest() {
-        NotificationBus<Long> nb = new NotificationBus<Long>();
+        ShoutSet<Long> nb = new ShoutSet<Long>();
 
         nb.add(1L);
         nb.add(2L);
         nb.add(3L);
         nb.add(4L);
 
-        List<Long> items = nb.getAll();
+        List<Long> items = JuicyCollections.copySetToList(Long.class, nb);
 
         Assert.assertEquals("getAll() size", 4, items.size());
         Assert.assertEquals(1L, (long)items.get(0));
@@ -33,7 +34,9 @@ public class NotificationBusTest {
 
     @Test
     public void basicRemoveTest() {
-        NotificationBus<Long> nb = new NotificationBus<Long>();
+        ShoutSet<Long> nb = new ShoutSet<Long>();
+        Set<Long> nbSet = nb;
+
         List<Long> items;
 
         nb.add(1L);
@@ -41,7 +44,7 @@ public class NotificationBusTest {
         nb.add(3L);
         nb.add(4L);
 
-        items = nb.getAll();
+        items = JuicyCollections.copySetToList(Long.class, nbSet);
 
         Assert.assertEquals("getAll() size", 4, items.size());
         Assert.assertEquals(1L, (long)items.get(0));
@@ -54,15 +57,15 @@ public class NotificationBusTest {
         nb.remove(3L);
         nb.remove(4L);
 
-        items = nb.getAll();
+        items = JuicyCollections.copySetToList(Long.class, nbSet);
         Assert.assertEquals("getAll() empty", 0, items.size());
         nb.close();
     }
 
     @Test
     public void notificationTest() {
-        NotificationBusListener<Long> listener =  Mockito.mock(NotificationBusListener.class);
-        NotificationBus<Long> nb = new NotificationBus<Long>();
+        ShoutSetListener<Long> listener =  Mockito.mock(ShoutSetListener.class);
+        ShoutSet<Long> nb = new ShoutSet<Long>();
 
         nb.addListener(listener);
 
