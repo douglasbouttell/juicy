@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package uk.co.douglasbouttell.juicy.util;
+package uk.co.douglasbouttell.juicy.nio;
+
+import java.nio.ByteBuffer;
 
 /**
  * @author Douglas
- * @since 03/07/2015
+ * @since 04/07/2015
  */
-public interface ShoutSetListener<E> {
-    void onAdd(E e);
-    void onRemove(E e);
+public interface ByteBufferSerializable {
+    ByteBuffer readByteBuffer(ByteBuffer in);
+    ByteBuffer writeByteBuffer(ByteBuffer out);
 }

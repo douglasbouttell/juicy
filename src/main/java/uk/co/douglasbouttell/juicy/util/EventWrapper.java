@@ -16,11 +16,30 @@
 
 package uk.co.douglasbouttell.juicy.util;
 
+import java.util.Queue;
+
 /**
  * @author Douglas
- * @since 03/07/2015
+ * @since 04/07/2015
  */
-public interface ShoutSetListener<E> {
-    void onAdd(E e);
-    void onRemove(E e);
+public class EventWrapper<V,E> {
+    private final V verb;
+    private final E element;
+
+    public EventWrapper(V verb, E element) {
+        this.verb = verb;
+        this.element = element;
+    }
+
+    public V getVerb() {
+        return verb;
+    }
+
+    public E getElement() {
+        return element;
+    }
+
+    public static <V, E> void dispatch(Queue<EventWrapper<V,E>> q, V verb, E element) {
+        q.add(new EventWrapper<V, E>(verb, element));
+    }
 }

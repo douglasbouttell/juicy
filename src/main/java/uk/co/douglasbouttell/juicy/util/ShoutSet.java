@@ -1,8 +1,24 @@
+/*
+ * Copyright 2015 Douglas Bouttell
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package uk.co.douglasbouttell.juicy.util;
 
 import uk.co.douglasbouttell.juicy.concurrent.ConsumingRunnable;
+import uk.co.douglasbouttell.juicy.concurrent.Stoppable;
 
-import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -10,11 +26,16 @@ import java.util.concurrent.*;
  * @author Douglas Bouttell
  * @since 03/07/2015
  */
-public class ShoutSet<E> implements Set<E>, Closeable, Listenable<ShoutSetListener<E>> {
+public class ShoutSet<E> implements Set<E>, Stoppable, Listenable<ShoutSetListener<E>> {
+
+    public enum EventVerb {
+        ADD,
+        REMOVE
+    }
 
     private final Set<E> active = new CopyOnWriteArraySet<E>();
     private final List<ShoutSetListener<E>> listeners = new CopyOnWriteArrayList<ShoutSetListener<E>>();
-    private final Queue<Event<E>> dispatchQueue = new ConcurrentLinkedQueue<Event<E>>();
+    private final Queue<EventWrapper<EventVerb, E>> dispatchQueue = new ConcurrentLinkedQueue<EventWrapper<EventVerb, E>>();
     private final Dispatcher<E> dispatch;
     private final Future dispatchFuture;
 
@@ -42,7 +63,7 @@ public class ShoutSet<E> implements Set<E>, Closeable, Listenable<ShoutSetListen
         this.dispatchFuture = exec.submit(dispatch);
     }
 
-    public void close() {
+    public void stop() {
         try {
             this.dispatch.stop();
             this.dispatch.awaitFinished();
@@ -77,7 +98,7 @@ public class ShoutSet<E> implements Set<E>, Closeable, Listenable<ShoutSetListen
 
     public boolean add(E e) {
         if (active.add(e)) {
-            dispatchQueue.add(new Event<E>(Event.VERB.ADD, e));
+            EventWrapper.dispatch(dispatchQueue, EventVerb.ADD, e);
             return true;
         }
         return false;
@@ -85,7 +106,7 @@ public class ShoutSet<E> implements Set<E>, Closeable, Listenable<ShoutSetListen
 
     public boolean remove(Object o) {
         if (active.remove(o)) {
-            dispatchQueue.add(new Event<E>(Event.VERB.REMOVE, (E)o));
+            EventWrapper.dispatch(dispatchQueue, EventVerb.REMOVE, (E)o);
             return true;
         }
         return false;
@@ -136,10 +157,10 @@ public class ShoutSet<E> implements Set<E>, Closeable, Listenable<ShoutSetListen
         listeners.remove(listener);
     }
 
-    private static class Dispatcher<E> extends ConsumingRunnable<Event<E>> {
+    private static class Dispatcher<E> extends ConsumingRunnable<EventWrapper<EventVerb, E>> {
         private final List<ShoutSetListener<E>> listeners;
 
-        public Dispatcher(Queue<Event<E>> q, List<ShoutSetListener<E>> listeners) {
+        public Dispatcher(Queue<EventWrapper<EventVerb, E>> q, List<ShoutSetListener<E>> listeners) {
             super(q);
             this.listeners = listeners;
         }
@@ -150,39 +171,15 @@ public class ShoutSet<E> implements Set<E>, Closeable, Listenable<ShoutSetListen
         }
 
         @Override
-        protected void consume(Event<E> ev) {
+        protected void consume(EventWrapper<EventVerb, E> ev) throws InterruptedException {
             for (ShoutSetListener<E> listener : listeners) {
                 switch (ev.getVerb()) {
-                    case ADD: listener.onAdd(ev.getEvent()); break;
-                    case REMOVE: listener.onRemove(ev.getEvent()); break;
-                    default: break;
+                    case ADD: listener.onAdd(ev.getElement()); break;
+                    case REMOVE: listener.onRemove(ev.getElement()); break;
+                    default: throw new InterruptedException("Unknown Verb");
                 }
             }
         }
     }
-
-    private static class Event<E> {
-        public enum VERB {
-            ADD,
-            REMOVE
-        }
-
-        private final E e;
-        private final VERB verb;
-
-        public Event(VERB v, E e) {
-            this.verb = v;
-            this.e = e;
-        }
-
-        public E getEvent() {
-            return e;
-        }
-
-        public VERB getVerb() {
-            return verb;
-        }
-    }
-
 
 }
