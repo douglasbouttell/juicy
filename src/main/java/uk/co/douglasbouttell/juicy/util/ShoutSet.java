@@ -68,7 +68,8 @@ public class ShoutSet<E> implements Set<E>, Stoppable, Listenable<ShoutSetListen
             this.dispatch.stop();
             this.dispatch.awaitFinished();
         } catch (InterruptedException e) {
-            this.dispatchFuture.cancel(true);
+            e.printStackTrace();
+            //this.dispatchFuture.cancel(true);
         }
     }
 
@@ -99,6 +100,7 @@ public class ShoutSet<E> implements Set<E>, Stoppable, Listenable<ShoutSetListen
     public boolean add(E e) {
         if (active.add(e)) {
             dispatchQueue.add(new SimpleTuple.Pair<EventVerb, E>(EventVerb.ADD, e));
+            Thread.yield();
             return true;
         }
         return false;
@@ -107,6 +109,7 @@ public class ShoutSet<E> implements Set<E>, Stoppable, Listenable<ShoutSetListen
     public boolean remove(Object o) {
         if (active.remove(o)) {
             dispatchQueue.add(new SimpleTuple.Pair<EventVerb, E>(EventVerb.REMOVE, (E)o));
+            Thread.yield();
             return true;
         }
         return false;
