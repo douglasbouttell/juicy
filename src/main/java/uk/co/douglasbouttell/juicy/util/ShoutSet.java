@@ -35,7 +35,7 @@ public class ShoutSet<E> implements Set<E>, Stoppable, Listenable<ShoutSetListen
 
     private final Set<E> active = new CopyOnWriteArraySet<E>();
     private final List<ShoutSetListener<E>> listeners = new CopyOnWriteArrayList<ShoutSetListener<E>>();
-    private final Queue<EventWrapper<EventVerb, E>> dispatchQueue = new ConcurrentLinkedQueue<EventWrapper<EventVerb, E>>();
+    private final Queue<SimpleTuple.Pair<EventVerb, E>> dispatchQueue = new ConcurrentLinkedQueue<SimpleTuple.Pair<EventVerb, E>>();
     private final Dispatcher<E> dispatch;
     private final Future dispatchFuture;
 
@@ -98,7 +98,7 @@ public class ShoutSet<E> implements Set<E>, Stoppable, Listenable<ShoutSetListen
 
     public boolean add(E e) {
         if (active.add(e)) {
-            EventWrapper.dispatch(dispatchQueue, EventVerb.ADD, e);
+            dispatchQueue.add(new SimpleTuple.Pair<EventVerb, E>(EventVerb.ADD, e));
             return true;
         }
         return false;
@@ -106,7 +106,7 @@ public class ShoutSet<E> implements Set<E>, Stoppable, Listenable<ShoutSetListen
 
     public boolean remove(Object o) {
         if (active.remove(o)) {
-            EventWrapper.dispatch(dispatchQueue, EventVerb.REMOVE, (E)o);
+            dispatchQueue.add(new SimpleTuple.Pair<EventVerb, E>(EventVerb.REMOVE, (E)o));
             return true;
         }
         return false;
@@ -157,10 +157,10 @@ public class ShoutSet<E> implements Set<E>, Stoppable, Listenable<ShoutSetListen
         listeners.remove(listener);
     }
 
-    private static class Dispatcher<E> extends ConsumingRunnable<EventWrapper<EventVerb, E>> {
+    private static class Dispatcher<E> extends ConsumingRunnable<SimpleTuple.Pair<EventVerb, E>> {
         private final List<ShoutSetListener<E>> listeners;
 
-        public Dispatcher(Queue<EventWrapper<EventVerb, E>> q, List<ShoutSetListener<E>> listeners) {
+        public Dispatcher(Queue<SimpleTuple.Pair<EventVerb, E>> q, List<ShoutSetListener<E>> listeners) {
             super(q);
             this.listeners = listeners;
         }
@@ -171,11 +171,13 @@ public class ShoutSet<E> implements Set<E>, Stoppable, Listenable<ShoutSetListen
         }
 
         @Override
-        protected void consume(EventWrapper<EventVerb, E> ev) throws InterruptedException {
+        protected void consume(SimpleTuple.Pair<EventVerb, E> ev) throws InterruptedException {
+            EventVerb eventVerb = ev.get1();
+            E e = ev.get2();
             for (ShoutSetListener<E> listener : listeners) {
-                switch (ev.getVerb()) {
-                    case ADD: listener.onAdd(ev.getElement()); break;
-                    case REMOVE: listener.onRemove(ev.getElement()); break;
+                switch (eventVerb) {
+                    case ADD: listener.onAdd(e); break;
+                    case REMOVE: listener.onRemove(e); break;
                     default: throw new InterruptedException("Unknown Verb");
                 }
             }
