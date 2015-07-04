@@ -1,3 +1,5 @@
+![travis-ci](https://travis-ci.org/douglasbouttell/juicy.svg?branch=master)
+
 # Juicy: Useful Java Library
 
 Juicy is a collection of java patterns and "glue" that I have found useful over the years.
