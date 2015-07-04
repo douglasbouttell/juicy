@@ -18,8 +18,12 @@ package uk.co.douglasbouttell.juicy.util;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.MockSettings;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -28,6 +32,7 @@ import java.util.Set;
  * @since 03/07/2015
  */
 public class ShoutSetTest {
+    private static final Logger log = LoggerFactory.getLogger(ShoutSetTest.class);
 
     @Test
     public void basicAddTest() {
@@ -80,10 +85,32 @@ public class ShoutSetTest {
 
     @Test
     public void notificationTest() {
-        ShoutSetListener<Long> listener =  Mockito.mock(ShoutSetListener.class);
+        ShoutSetListener[] listeners = new ShoutSetListener[] {
+                Mockito.mock(ShoutSetListener.class),
+                Mockito.mock(ShoutSetListener.class),
+                Mockito.mock(ShoutSetListener.class),
+                Mockito.mock(ShoutSetListener.class),
+                Mockito.mock(ShoutSetListener.class)
+        };
+        ShoutSetListener<Long> listener1 = new ShoutSetListener<Long>() {
+            Set<Long> myset = new HashSet<Long>();
+            public void onAdd(Long aLong) {
+                log.info("onAdd({})", aLong);
+                myset.add(aLong);
+            }
+
+            public void onRemove(Long aLong) {
+                log.info("onRemove({})", aLong);
+                myset.remove(aLong);
+            }
+        };
         ShoutSet<Long> nb = new ShoutSet<Long>();
 
-        nb.addListener(listener);
+        log.info("Hello");
+
+        nb.addListener(listener1);
+        for (ShoutSetListener l : listeners)
+            nb.addListener(l);
 
         nb.add(1L);
         nb.add(2L);
@@ -94,16 +121,19 @@ public class ShoutSetTest {
         nb.remove(3L);
         nb.remove(4L);
 
-        Mockito.verify(listener).onAdd(1L);
-        Mockito.verify(listener).onAdd(2L);
-        Mockito.verify(listener).onAdd(3L);
-        Mockito.verify(listener).onAdd(4L);
-        Mockito.verify(listener).onRemove(1L);
-        Mockito.verify(listener).onRemove(2L);
-        Mockito.verify(listener).onRemove(3L);
-        Mockito.verify(listener).onRemove(4L);
-        Mockito.verifyNoMoreInteractions(listener);
         nb.stop();
+
+        for (ShoutSetListener mock : listeners) {
+            Mockito.verify(mock).onAdd(1L);
+            Mockito.verify(mock).onAdd(2L);
+            Mockito.verify(mock).onAdd(3L);
+            Mockito.verify(mock).onAdd(4L);
+            Mockito.verify(mock).onRemove(1L);
+            Mockito.verify(mock).onRemove(2L);
+            Mockito.verify(mock).onRemove(3L);
+            Mockito.verify(mock).onRemove(4L);
+            Mockito.verifyNoMoreInteractions(mock);
+        }
     }
 
 }

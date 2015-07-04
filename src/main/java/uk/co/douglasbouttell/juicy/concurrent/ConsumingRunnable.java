@@ -23,7 +23,6 @@ import java.util.Queue;
  * @since 03/07/2015
  */
 public abstract class ConsumingRunnable<E> extends LoopingRunnable {
-
     private final Queue<E> queue;
 
     public ConsumingRunnable(Queue<E> queue) {
@@ -32,10 +31,13 @@ public abstract class ConsumingRunnable<E> extends LoopingRunnable {
 
     @Override
     final protected void loop() throws InterruptedException {
-        E e = queue.poll();
-        if (e != null) {
-            consume(e);
-        }
+        E e = null;
+        do {
+            e = queue.poll();
+            if (e != null) {
+                consume(e);
+            }
+        } while (e != null); /* Clear out the queue before going up to see if we should exit */
     }
 
     protected abstract void consume(E e) throws InterruptedException;
